@@ -1,0 +1,11 @@
+name: Feature idea
+description: Suggest something new
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What would you like the deck to do? How would you use it?
+    validations:
+      required: true

@@ -1,0 +1,33 @@
+name: Bug report
+description: Something is not working
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: For example Ajazz AKP03E. The USB ID from `python app.py --list` helps a lot.
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+  - type: input
+    id: version
+    attributes:
+      label: AKP03 Deck version
+      description: Shown in the About window (click the logo in the studio)
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Drag `akp03.log` and `launcher.log` from the app folder here

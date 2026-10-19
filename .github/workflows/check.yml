@@ -1,0 +1,24 @@
+name: Checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -r requirements.txt
+      - name: Python compiles
+        run: python -m compileall -q . -x "\.venv"
+      - name: Modules import
+        run: python -c "import akp03, render, library, icons, monitor, actions, games, ai, context; print('ok')"
+      - name: Library icons exist
+        run: python -c "import os, library; missing=[i['icon'] for i in library.LIBRARY if not os.path.exists(i['icon'])]; assert not missing, missing; print(len(library.LIBRARY), 'actions ok')"
+      - name: Studio script parses
+        run: node --check ui/ui.js

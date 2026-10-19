@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Personal data: never commit these
+config.json
+config.*.json
+secret.json
+*.log
+*.log.*
+icons/
+app.ico
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
