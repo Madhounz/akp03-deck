@@ -12,7 +12,8 @@ from pynput.mouse import Controller as Mouse
 kb = KB()
 mouse = Mouse()
 
-ACTION_TYPES = ["none", "open", "hotkey", "media", "np", "page", "macro", "ai", "timer", "mic", "game", "fun", "command", "text", "scroll"]
+ACTION_TYPES = ["none", "open", "hotkey", "media", "np", "page", "macro", "ai", "timer", "mic", "game", "fun", "command", "text", "scroll",
+                "sleep"]
 
 MEDIA = {
     "play_pause": Key.media_play_pause,
@@ -39,6 +40,7 @@ HINTS = {
     "mic": "Mutes or unmutes your microphone everywhere",
     "game": "simon or reaction. Any round button quits",
     "fun": "dice, coin or party",
+    "sleep": "Turns the deck's screens off. Any press wakes it",
 }
 
 SUGGESTIONS = {

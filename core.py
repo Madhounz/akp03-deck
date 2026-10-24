@@ -92,7 +92,11 @@ class Core:
         self._stats_dirty = False
         self.health = {"state": "searching", "reconnects": 0, "since": time.time(), "last_error": ""}
         self.flyout_open = False
-        for target in (self._connect_loop, self._anim_loop, self._smart_loop, self._stats_loop, self._hud_loop, self._auto_icons):
+        self.asleep = False
+        self._last_input = time.time()
+        self._swallow: set = set()  # slots whose release belongs to a wake-up press
+        for target in (self._connect_loop, self._anim_loop, self._smart_loop, self._stats_loop, self._hud_loop, self._auto_icons,
+                       self._sleep_loop):
             threading.Thread(target=target, daemon=True).start()
 
     # ---------------- config ----------------
@@ -347,7 +351,7 @@ class Core:
 
     def set_brightness(self, v: int):
         self.cfg["brightness"] = int(v)
-        if self.deck:
+        if self.deck and not self.asleep:
             try:
                 self.deck.set_brightness(int(v))
             except Exception:
@@ -383,6 +387,8 @@ class Core:
             threading.Thread(target=self._ai, args=(a, key_i), daemon=True).start()
         elif t == "game":
             self.start_game(v)
+        elif t == "sleep":
+            self.sleep_now()
         elif t == "fun":
             self._fun(v, key_i)
         elif t == "macro":
@@ -596,9 +602,53 @@ class Core:
             return self._mode_alt(i)
         self.run_action(a, slot)
 
+    # ---------------- sleep: screens off after a while untouched ----------------
+    def _sleep_loop(self):
+        while True:
+            time.sleep(1.0)
+            try:
+                mins = float(self.cfg.get("sleep_minutes", 0) or 0)
+                if mins <= 0 or self.asleep or self.game or not self.deck:
+                    continue
+                if time.time() - self._last_input >= mins * 60:
+                    self.sleep_now(f"after {mins:g} min untouched")
+            except Exception as e:
+                print("Sleep error:", e)
+
+    def sleep_now(self, why="from a key"):
+        if self.asleep or not self.deck:
+            return
+        self.asleep = True
+        self.deck.set_brightness(0)
+        self.deck.screens_off()
+        log.info("Deck asleep %s", why)
+        self.emit({"t": "sleep", "on": True})
+
+    def _touched(self, slot=None, pressed=True) -> bool:
+        """Note activity. Returns True when the event only woke the deck and must not run an action."""
+        self._last_input = time.time()
+        if slot is not None and not pressed and slot in self._swallow:
+            self._swallow.discard(slot)
+            return True
+        if not self.asleep:
+            return False
+        self.asleep = False
+        if slot is not None and pressed:
+            self._swallow.add(slot)
+        if self.deck:
+            self.deck.screens_on()
+            self.deck.set_brightness(self.cfg.get("brightness", 80))
+        self._due.clear()
+        self.push_page()
+        log.info("Deck woke up")
+        self.emit({"t": "sleep", "on": False})
+        return True
+
     # ---------------- device input ----------------
     def _on_key(self, key: int, pressed: bool):
         slot = ("key", key) if key < 6 else ("button", key - 6)
+        if self._touched(slot, pressed):
+            return
         if self.game:
             if pressed:
                 self.game.press(key) if key < 6 else self.stop_game()
@@ -610,6 +660,8 @@ class Core:
         (self._down_evt if pressed else self._up_evt)(slot)
 
     def _on_knob_press(self, knob: int, pressed: bool):
+        if self._touched(("knob", knob), pressed):
+            return
         if self.game:
             if pressed:
                 self.stop_game()
@@ -617,6 +669,8 @@ class Core:
         (self._down_evt if pressed else self._up_evt)(("knob", knob))
 
     def _on_knob_turn(self, knob: int, delta: int):
+        if self._touched():
+            return
         if self.game:
             return
         kn = self.cfg["knobs"].get(str(knob), {})
@@ -768,7 +822,7 @@ class Core:
             try:
                 self._timer_tick()
                 now = time.time()
-                if self.game or self._busy:
+                if self.game or self._busy or self.asleep:
                     continue
                 p = self.page_index
                 if self._hud_on and now > self._hud_until:
@@ -910,7 +964,10 @@ class Core:
                     d.on_knob_press = self._on_knob_press
                     d.on_disconnect = self._lost
                     self.deck = d
-                    d.set_brightness(self.cfg.get("brightness", 80))
+                    d.clear_all()  # wipe the firmware's Ajazz boot logo so it doesn't show behind the keys
+                    d.set_brightness(0 if self.asleep else self.cfg.get("brightness", 80))
+                    if self.asleep:
+                        d.screens_off()
                     self.push_page(splash=True, credits=True)
                     d.start()
                     self._due.clear()

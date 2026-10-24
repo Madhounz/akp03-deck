@@ -652,6 +652,11 @@ function settingsHTML() {
       <label class="tg"><span>Start when Windows starts<br><small class="muted">Runs quietly in the tray and restarts itself if it ever stops</small></span><input type="checkbox" class="sw" id="sStart" ${S.startup ? "checked" : ""}></label>
       <label class="tg"><span>Show a banner when switching pages</span><input type="checkbox" class="sw" id="sSplash" ${S.cfg.splash !== false ? "checked" : ""}></label>
     </section>
+    <section class="blk"><div class="blk-h"><h3>Sleep</h3><button class="btn" id="sSleepNow">Sleep now</button></div>
+      <label class="f"><span>Turn the screens off after</span><select class="in" id="sSleep" style="width:160px">${
+        [0, 1, 2, 3, 5, 10, 15, 30, 60].map(m => `<option value="${m}" ${(S.cfg.sleep_minutes || 0) === m ? "selected" : ""}>${m ? `${m} minute${m > 1 ? "s" : ""}` : "Never"}</option>`).join("")
+      }</select></label>
+      <p class="note">Counts from the last press or knob turn. Any press wakes the deck, and that press only wakes it.</p></section>
     <section class="blk"><h3>Smart pages</h3>
       <label class="tg"><span>Follow the app in front<br><small class="muted">Pages with apps set open by themselves</small></span><input type="checkbox" class="sw" id="sSmart" ${sm.enabled !== false ? "checked" : ""}></label>
       <label class="tg"><span>Go back when I leave the app</span><input type="checkbox" class="sw" id="sBack" ${sm.go_back !== false ? "checked" : ""}></label>
@@ -681,6 +686,8 @@ function bindSettings() {
   $("#sSplash").onchange = e => { S.cfg.splash = e.target.checked; api("settings", {patch:{splash:e.target.checked}}); };
   const smart = () => { const v = {enabled:$("#sSmart").checked, go_back:$("#sBack").checked}; S.cfg.smart = v; api("settings", {patch:{smart:v}}); };
   $("#sSmart").onchange = smart; $("#sBack").onchange = smart;
+  $("#sSleep").onchange = e => { const m = +e.target.value; S.cfg.sleep_minutes = m; api("settings", {patch:{sleep_minutes:m}}); toast(m ? `Deck sleeps after ${m} minute${m > 1 ? "s" : ""} untouched` : "Deck never sleeps by itself"); };
+  $("#sSleepNow").onclick = () => api("sleep_now", {});
   $("#sMin").onchange = e => { S.cfg.timer_minutes = +e.target.value; api("settings", {patch:{timer_minutes:+e.target.value}}); toast(`Focus timer set to ${e.target.value} minutes`); };
   $("#sSaveAi").onclick = async () => {
     const body = {model:$("#sModel").value}; if ($("#sKey").value.trim()) body.key = $("#sKey").value.trim();

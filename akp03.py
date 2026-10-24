@@ -132,6 +132,16 @@ class Deck:
     def set_brightness(self, pct: int):
         self._queue_cmd(_cmd(b"LIG", 0, 0, max(0, min(100, int(pct)))))
 
+    def screens_off(self):
+        """Turn the panel off (HAN). Brightness 0 only dims it."""
+        self._queue_cmd(_cmd(b"HAN"))
+
+    def screens_on(self):
+        """Wake the panel (DIS) and forget what was shown, so every key image is sent again."""
+        with self._cv:
+            self._sent.clear()
+        self._queue_cmd(_cmd(b"DIS"))
+
     def set_key_image(self, key: int, image: Image.Image):
         if not 0 <= key < LCD_KEYS or self._dead:
             return
