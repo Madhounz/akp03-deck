@@ -318,8 +318,16 @@ class Api:
         if "timer_minutes" in patch:
             core.cfg["timer_minutes"] = max(1, min(240, int(patch["timer_minutes"])))
             core._timer_action("reset")
+        if "sleep_minutes" in patch:
+            core.cfg["sleep_minutes"] = max(0, min(240, int(patch["sleep_minutes"])))
+            core._last_input = time.time()  # count from now, so a shorter time doesn't sleep at once
         core.save()
         return {"startup": startup_enabled(), "cfg": core.cfg}
+
+    @staticmethod
+    def sleep_now(_):
+        core.sleep_now("from the studio")
+        return {"ok": True}
 
     @staticmethod
     def test_action(b):
