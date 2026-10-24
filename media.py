@@ -5,6 +5,8 @@ Every part is optional. If a package is missing, that feature quietly turns off.
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
+import functools
 import io
 import threading
 import time
@@ -31,10 +33,29 @@ def _endpoint(mic=False):
     ev = getattr(dev, "EndpointVolume", None)
     if ev is not None:
         return ev
-    from ctypes import POINTER, cast
+    # GetMicrophone() returns a bare IMMDevice. ctypes.cast() made a second comtypes pointer to the
+    # same interface without AddRef, so both Release()d it: a double free that crashed the process.
     from comtypes import CLSCTX_ALL
     iface = dev.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    return cast(iface, POINTER(IAudioEndpointVolume))
+    return iface.QueryInterface(IAudioEndpointVolume)
+
+
+# pycaw is called from the anim loop, knob events, the flyout and HTTP threads. COM objects should be
+# created, used and released on one initialised thread, so every Audio call runs on this worker.
+_COM_POOL = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="audio-com", initializer=_com)
+
+
+def _on_com_thread(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if threading.current_thread().name.startswith("audio-com"):
+            return fn(*args, **kwargs)
+        try:
+            return _COM_POOL.submit(fn, *args, **kwargs).result(timeout=5)
+        except concurrent.futures.TimeoutError:
+            print(f"Audio call {fn.__name__} timed out")
+            return (None, None) if fn.__name__ == "app" else None
+    return wrapper
 
 
 class Audio:
@@ -46,6 +67,7 @@ class Audio:
             self.ok = False
         self._mic_cache = (0.0, None)
 
+    @_on_com_thread
     def master(self, delta: float = 0.0):
         """Change master volume by delta (0..1). Returns new level or None."""
         if not self.ok:
@@ -67,6 +89,7 @@ class Audio:
         cur = self.master(0)
         return None if cur is None else self.master(max(0.0, min(1.0, v)) - cur)
 
+    @_on_com_thread
     def master_muted(self):
         if not self.ok:
             return None
@@ -76,6 +99,7 @@ class Audio:
         except Exception:
             return None
 
+    @_on_com_thread
     def master_mute_toggle(self):
         try:
             _com()
@@ -91,6 +115,10 @@ class Audio:
         t, v = self._mic_cache
         if time.time() - t < 0.8:
             return v
+        return self._mic_muted_fresh()
+
+    @_on_com_thread
+    def _mic_muted_fresh(self):
         try:
             _com()
             v = bool(_endpoint(mic=True).GetMute())
@@ -99,6 +127,7 @@ class Audio:
         self._mic_cache = (time.time(), v)
         return v
 
+    @_on_com_thread
     def mic_toggle(self):
         try:
             _com()
@@ -123,6 +152,7 @@ class Audio:
                 out.append((name, s.SimpleAudioVolume))
         return out
 
+    @_on_com_thread
     def app(self, match: str, delta: float = 0.0, toggle_mute=False):
         """Volume of one app (by exe name). Returns (level, app name) or (None, None)."""
         if not self.ok or not match:
@@ -144,6 +174,7 @@ class Audio:
             print("App volume error:", e)
             return None, None
 
+    @_on_com_thread
     def apps(self):
         """Apps that are playing sound right now."""
         if not self.ok:
