@@ -39,6 +39,7 @@ LIBRARY = [
     {"id": "notepad", "cat": "Windows", "name": "Notepad", "icon": D("memo"), "action": _a("open", "notepad.exe")},
     {"id": "terminal", "cat": "Windows", "name": "Terminal", "icon": B("ms_terminal"), "action": _a("open", "wt.exe")},
     {"id": "lock", "cat": "Windows", "name": "Lock PC", "icon": D("locked"), "action": _a("command", "rundll32.exe user32.dll,LockWorkStation")},
+    {"id": "decksleep", "cat": "Windows", "name": "Sleep deck", "icon": D("zzz"), "action": _a("sleep", "")},
 
     # Live tiles and smart keys
     {"id": "nowplaying", "cat": "Live", "name": "Now Playing", "icon": D("musical_note"), "live": "nowplaying",

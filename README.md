@@ -67,6 +67,8 @@ It turns on "Start when Windows starts" the first time, so the deck comes alive 
 
 **Pages.** The round Button 1 goes to the previous page and Button 3 to the next one. Any key can also jump to a page, so a key can work like a folder. In the Page tab you can give each page a name, icon, color, wallpaper, RGB glow and the apps that should open it automatically.
 
+**Sleep.** The **Sleep deck** action (in the Library under Windows) turns the deck's screens off. To make the deck sleep by itself, add `"sleep_minutes": 3` (or any number of minutes) to `config.json`; `0` turns it off, which is the default. Any key, button or knob wakes the deck, and that first press only wakes it: it does not run the key's action.
+
 **Default layout**
 
 | Control | Does |
